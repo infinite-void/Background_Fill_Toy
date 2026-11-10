@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Koishii Steps Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --page-bg: #f2f1ec;
+        --panel: #ffffff;
+        --panel-edge: #ddd9cf;
+        --ink: #1c1d21;
+        --ink-soft: #5a5c63;
+        --field: #f6f5f1;
+        --field-edge: #cfccc2;
+        --accent: #d6006d;
+        --accent-ink: #ffffff;
+        --seg-bg: #e9e7e0;
+        --seg-on: #1c1d21;
+        --seg-on-ink: #ffffff;
+        --stage-edge: #c9c6bb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page-bg: #131417;
+          --panel: #1d1f24;
+          --panel-edge: #33363e;
+          --ink: #eceef2;
+          --ink-soft: #a3a7b0;
+          --field: #26282e;
+          --field-edge: #3c3f47;
+          --accent: #ff4da6;
+          --accent-ink: #16030d;
+          --seg-bg: #26282e;
+          --seg-on: #eceef2;
+          --seg-on-ink: #131417;
+          --stage-edge: #33363e;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--page-bg);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 18px 16px 40px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 18px;
+        align-items: start;
+      }
+      .stage-card {
+        background: var(--panel);
+        border: 1px solid var(--panel-edge);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .stage {
+        border: 1px solid var(--stage-edge);
+        border-radius: 6px;
+        overflow: hidden;
+        line-height: 0;
+      }
+      canvas { width: 100%; height: auto; display: block; }
+      .stage-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-edge);
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .group { display: flex; flex-direction: column; gap: 8px; }
+      .group + .group { border-top: 1px solid var(--panel-edge); padding-top: 16px; }
+      .group h2 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+      }
+      .group p.hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
+      button {
+        font: inherit;
+        cursor: pointer;
+        border: 1px solid var(--field-edge);
+        background: var(--field);
+        color: var(--ink);
+        border-radius: 7px;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 500;
+        min-height: 38px;
+      }
+      button:hover { border-color: var(--ink-soft); }
+      button:active { transform: translateY(1px); }
+      button.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--accent-ink);
+        font-weight: 600;
+      }
+      .stepper { display: flex; align-items: stretch; gap: 8px; }
+      .stepper button { flex: 0 0 44px; font-size: 18px; padding: 4px 0; }
+      .stepper .val {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--field-edge);
+        background: var(--field);
+        border-radius: 7px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 15px;
+        min-height: 38px;
+      }
+      .stepper .val small { color: var(--ink-soft); font-size: 11px; margin-left: 6px; font-family: "IBM Plex Sans", sans-serif; }
+      .seg {
+        display: flex;
+        background: var(--seg-bg);
+        border-radius: 8px;
+        padding: 3px;
+        gap: 3px;
+      }
+      .seg button {
+        flex: 1;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        padding: 7px 4px;
+        font-size: 13px;
+        min-height: 34px;
+        color: var(--ink-soft);
+      }
+      .seg button[aria-pressed="true"] {
+        background: var(--seg-on);
+        color: var(--seg-on-ink);
+        font-weight: 600;
+      }
+      .color-row { display: flex; align-items: center; gap: 8px; }
+      .color-row input[type="color"] {
+        width: 44px; height: 38px; padding: 2px;
+        border: 1px solid var(--field-edge);
+        border-radius: 7px;
+        background: var(--field);
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+      .color-row input[type="text"] {
+        flex: 1; min-width: 0;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 14px;
+        padding: 8px 10px;
+        border: 1px solid var(--field-edge);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--ink);
+      }
+      .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+      .swatches button {
+        width: 30px; height: 30px; min-height: 30px; padding: 0;
+        border-radius: 6px; border: 1px solid rgba(0,0,0,0.22);
+      }
+      .swatches button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+      .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .toggle-row span { font-size: 14px; font-weight: 500; }
+      .switch {
+        position: relative; width: 48px; height: 28px; flex: 0 0 auto;
+        border-radius: 999px; border: 1px solid var(--field-edge);
+        background: var(--seg-bg); padding: 0; min-height: 28px;
+      }
+      .switch::after {
+        content: ""; position: absolute; top: 3px; left: 3px;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: var(--panel); border: 1px solid var(--field-edge);
+        transition: left 0.15s ease, background 0.15s ease;
+      }
+      .switch[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+      .switch[aria-pressed="true"]::after { left: 23px; background: #fff; border-color: transparent; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); height: 28px; }
+      .range-row { display: flex; align-items: center; gap: 10px; }
+      .range-row output {
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 13px; color: var(--ink-soft); min-width: 38px; text-align: right;
+      }
+      .file-name {
+        margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-soft);
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .overlay-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .overlay-actions button { flex: 1; }
+      .slider-label {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 13px; font-weight: 500; color: var(--ink);
+      }
+      .slider-label output {
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 12.5px; color: var(--ink-soft); font-weight: 400;
+      }
+      .stage canvas { cursor: grab; touch-action: none; }
+      .stage canvas:active { cursor: grabbing; }
+      .preset-row { display: flex; gap: 8px; }
+      .preset-row button { flex: 1; }
+      @media (max-width: 860px) {
+        .wrap { grid-template-columns: minmax(0, 1fr); padding: 12px 10px 32px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="stage-card" aria-label="Steps stage">
+        <div class="stage" id="stage">
+          <canvas id="board" width="960" height="720" aria-label="Tiltable isometric stepped block structure with animated lights and optional uploaded lettering overlay. Drag up or down on the board to tilt it."></canvas>
+        </div>
+        <div class="stage-actions">
+          <button type="button" id="btn-shuffle" class="primary">Shuffle pattern</button>
+          <button type="button" id="btn-reset">Reset shape</button>
+          <button type="button" id="btn-upload-top">Upload lettering</button>
+        </div>
+        <input type="file" id="file-lettering" accept="image/*" hidden />
+      </section>
+
+      <aside class="panel" aria-label="Builder controls">
+        <div class="group">
+          <h2>Blocks</h2>
+          <div class="stepper">
+            <button type="button" id="size-minus" aria-label="Fewer blocks">&minus;</button>
+            <div class="val"><span id="size-val">21</span><small>field size</small></div>
+            <button type="button" id="size-plus" aria-label="More blocks">+</button>
+          </div>
+          <div class="stepper">
+            <button type="button" id="steps-minus" aria-label="Fewer steps">&minus;</button>
+            <div class="val"><span id="steps-val">5</span><small>steps down</small></div>
+            <button type="button" id="steps-plus" aria-label="More steps">+</button>
+          </div>
+          <p class="hint">Size grows the whole field outward. Steps sets how many levels drop on each side of the two diagonal rows that cross corner to corner, before the field flattens out.</p>
+        </div>
+
+        <div class="group">
+          <h2>View — tilt board</h2>
+          <div>
+            <div class="slider-label"><span>Tilt</span><output id="tilt-out">0&deg; — normal</output></div>
+            <input type="range" id="tilt" min="-32" max="38" step="1" value="0" aria-label="Tilt the whole board" />
+          </div>
+          <div class="preset-row" role="group" aria-label="Tilt presets">
+            <button type="button" id="tilt-front">Front</button>
+            <button type="button" id="tilt-normal">Normal</button>
+            <button type="button" id="tilt-top">Top-down</button>
+          </div>
+          <p class="hint">Front tips the board toward you — you see the sides and the peak drops. Top-down tips it the other way — the board flattens out, so lettering lying flat on it reads straight. You can also drag up or down on the board itself to tilt it.</p>
+        </div>
+
+        <div class="group">
+          <h2>Lighting</h2>
+          <div class="seg" role="group" aria-label="Lighting mode" id="light-seg">
+            <button type="button" data-mode="random" aria-pressed="false">Random</button>
+            <button type="button" data-mode="center" aria-pressed="false">Center out</button>
+            <button type="button" data-mode="both" aria-pressed="true">Both</button>
+            <button type="button" data-mode="off" aria-pressed="false">Off</button>
+          </div>
+          <p class="hint">Random twinkles blocks anywhere. Center out fires single-block rays from the middle that zigzag their way to the edge. Several fire at once, in any direction.</p>
+          <div class="range-row">
+            <input type="range" id="speed" min="25" max="250" value="100" aria-label="Animation speed" />
+            <output id="speed-out">1.0&times;</output>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Block color</h2>
+          <div class="seg" role="group" aria-label="Base color mode" id="base-seg">
+            <button type="button" data-base="grey" aria-pressed="true">Grey</button>
+            <button type="button" data-base="solid" aria-pressed="false">Solid fill</button>
+          </div>
+          <div class="color-row">
+            <input type="color" id="fill-picker" value="#3f7fbf" aria-label="Solid fill color picker" />
+            <input type="text" id="fill-hex" value="#3f7fbf" spellcheck="false" aria-label="Solid fill hex value" />
+          </div>
+          <p class="hint">Solid fill paints every block one persistent color, so there is no grey at all. The lights still fire on top of it.</p>
+        </div>
+
+        <div class="group">
+          <h2>Wrapper</h2>
+          <div class="toggle-row">
+            <span>Colored frame around the field</span>
+            <button type="button" class="switch" id="wrap-toggle" aria-pressed="true" aria-label="Toggle wrapper"></button>
+          </div>
+          <div class="color-row">
+            <input type="color" id="wrap-picker" value="#e0218a" aria-label="Wrapper color picker" />
+            <input type="text" id="wrap-hex" value="#e0218a" spellcheck="false" aria-label="Wrapper hex value" />
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Background</h2>
+          <div class="swatches" id="bg-swatches" role="group" aria-label="Background presets">
+            <button type="button" data-bg="#e9eae6" style="background:#e9eae6" aria-pressed="true" aria-label="Light grey background"></button>
+            <button type="button" data-bg="#8f959d" style="background:#8f959d" aria-pressed="false" aria-label="Mid grey background"></button>
+            <button type="button" data-bg="#2b2e35" style="background:#2b2e35" aria-pressed="false" aria-label="Charcoal background"></button>
+            <button type="button" data-bg="#101014" style="background:#101014" aria-pressed="false" aria-label="Near black background"></button>
+            <button type="button" data-bg="#f4efe4" style="background:#f4efe4" aria-pressed="false" aria-label="Warm paper background"></button>
+            <button type="button" data-bg="#274156" style="background:#274156" aria-pressed="false" aria-label="Deep blue background"></button>
+          </div>
+          <div class="color-row">
+            <input type="color" id="bg-picker" value="#e9eae6" aria-label="Background color picker" />
+            <input type="text" id="bg-hex" value="#e9eae6" spellcheck="false" aria-label="Background hex value" />
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Lettering overlay</h2>
+          <p class="hint">Upload your Koishii lettering — a transparent PNG works best. It draws right on top of the blocks so your screen capture records the lettering and the lights together.</p>
+          <div class="overlay-actions">
+            <button type="button" id="btn-upload-panel" class="primary">Upload lettering</button>
+            <button type="button" id="btn-remove-overlay" hidden>Remove</button>
+          </div>
+          <p class="file-name" id="overlay-name" hidden></p>
+          <div id="overlay-controls" hidden style="display:none; flex-direction:column; gap:10px;">
+            <div>
+              <div class="slider-label"><span>Lettering lies</span></div>
+              <div class="seg" role="group" aria-label="Lettering orientation" id="overlay-orient-seg">
+                <button type="button" data-orient="board" aria-pressed="true">Flat on board</button>
+                <button type="button" data-orient="screen" aria-pressed="false">Facing you</button>
+              </div>
+              <p class="hint" style="margin-top:6px;">Flat on board: the lettering tilts with the board — tilt the board Top-down to read it straight. Facing you: it stays upright on screen whatever the board does.</p>
+            </div>
+            <div>
+              <div class="slider-label"><span>Size</span><output id="overlay-size-out">68%</output></div>
+              <div class="range-row">
+                <button type="button" id="overlay-size-minus" aria-label="Make lettering smaller" style="flex:0 0 38px; min-height:32px; padding:2px 0;">&minus;</button>
+                <input type="range" id="overlay-size" min="8" max="115" value="68" aria-label="Lettering size" />
+                <button type="button" id="overlay-size-plus" aria-label="Make lettering larger" style="flex:0 0 38px; min-height:32px; padding:2px 0;">+</button>
+              </div>
+            </div>
+            <div>
+              <div class="slider-label"><span>Opacity</span><output id="overlay-opacity-out">100%</output></div>
+              <input type="range" id="overlay-opacity" min="10" max="100" value="100" aria-label="Lettering opacity" />
+            </div>
+            <div>
+              <div class="slider-label"><span>Left – right</span><output id="overlay-x-out">50%</output></div>
+              <input type="range" id="overlay-x" min="0" max="100" value="50" aria-label="Lettering horizontal position" />
+            </div>
+            <div>
+              <div class="slider-label"><span>Up – down</span><output id="overlay-y-out">50%</output></div>
+              <input type="range" id="overlay-y" min="0" max="100" value="50" aria-label="Lettering vertical position" />
+            </div>
+            <button type="button" id="btn-center-overlay">Center lettering</button>
+            <p class="hint">Tip: you can also drag the lettering directly on the stage to place it.</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        // Koishii palette: the saturated hues sampled from the approved
+        // twinkle and rays renders.
+        var PALETTE = ["#ff2020", "#ffe600", "#22e04a", "#00e5ff", "#2b7bff", "#ff00ff"];
+        // Face greys sampled from the approved grey structure.
+        var GREY = { top: "#d8d8d8", left: "#969696", right: "#696969" };
+
+        var state = {
+          size: 21,
+          steps: 5,
+          tilt: 0,
+          heights: null,
+          lightMode: "both",
+          speed: 1,
+          base: "grey",
+          fill: "#3f7fbf",
+          wrapper: true,
+          wrapColor: "#e0218a",
+          bg: "#e9eae6",
+          overlayImg: null,
+          overlayName: "",
+          overlayUrl: null,
+          overlayScale: 0.68,
+          overlayOpacity: 1,
+          overlayX: 0.5,
+          overlayY: 0.5,
+          overlayOrient: "board"
+        };
+        if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          state.lightMode = "off";
+        }
+
+        /* ----- color helpers ----- */
+        function hexToRgb(hex) {
+          var m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+          if (!m) return null;
+          var n = parseInt(m[1], 16);
+          return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+        function rgbStr(c) { return "rgb(" + c.r + "," + c.g + "," + c.b + ")"; }
+        var shadeCache = {};
+        function shade(hex, f) {
+          var key = hex + "|" + f;
+          if (shadeCache[key]) return shadeCache[key];
+          var c = hexToRgb(hex);
+          if (!c) return hex;
+          var out = rgbStr({
+            r: Math.max(0, Math.min(255, Math.round(c.r * f))),
+            g: Math.max(0, Math.min(255, Math.round(c.g * f))),
+            b: Math.max(0, Math.min(255, Math.round(c.b * f)))
+          });
+          shadeCache[key] = out;
+          return out;
+        }
+        function mixRgb(a, b, t) {
+          return rgbStr({
+            r: Math.round(a.r + (b.r - a.r) * t),
+            g: Math.round(a.g + (b.g - a.g) * t),
+            b: Math.round(a.b + (b.b - a.b) * t)
+          });
+        }
+        // Faces derived from one base hex: bright top, mid left, dark right.
+        function facesFor(hex) {
+          var c = hexToRgb(hex);
+          return {
+            topC: { r: Math.min(255, c.r * 1.3), g: Math.min(255, c.g * 1.3), b: Math.min(255, c.b * 1.3) },
+            leftC: { r: c.r * 0.92, g: c.g * 0.92, b: c.b * 0.92 },
+            rightC: { r: c.r * 0.6, g: c.g * 0.6, b: c.b * 0.6 },
+            top: shade(hex, 1.3), left: shade(hex, 0.92), right: shade(hex, 0.6)
+          };
+        }
+        var GREY_RGB = { top: hexToRgb(GREY.top), left: hexToRgb(GREY.left), right: hexToRgb(GREY.right) };
+
+        /* ----- structure ----- */
+        // The X ridge: one row of blocks crosses corner to corner along
+        // each diagonal, the two rows crossing at the center. Height is
+        // set by distance to the nearest diagonal — full ridge height on
+        // the row itself, stepping down one level per row out on each
+        // side, until the field flattens out at height 1.
+        function diagDists(i, j, n) {
+          return [Math.abs(i - j), Math.abs(i + j - (n - 1))];
+        }
+        function cleanHeights() {
+          var n = state.size, s = state.steps, h = [];
+          for (var j = 0; j < n; j++) {
+            h.push([]);
+            for (var i = 0; i < n; i++) {
+              var d = diagDists(i, j, n);
+              var lvl = Math.max(s + 1 - d[0], s + 1 - d[1]);
+              h[j].push(Math.max(1, lvl));
+            }
+          }
+          return h;
+        }
+        function shuffledHeights() {
+          var n = state.size, s = state.steps, h = [];
+          // Each diagonal keeps its own slightly random ridge height, so
+          // the X survives the shuffle but comes out lopsided every time.
+          var dSteps = [0, 1].map(function () {
+            return Math.max(2, s + Math.floor(Math.random() * 5) - 2);
+          });
+          for (var j = 0; j < n; j++) {
+            h.push([]);
+            for (var i = 0; i < n; i++) {
+              var d = diagDists(i, j, n);
+              var lvl = Math.max(dSteps[0] + 1 - d[0], dSteps[1] + 1 - d[1]);
+              var r = Math.random();
+              if (r < 0.05) lvl = 1;
+              else if (r < 0.22) lvl += Math.random() < 0.5 ? 1 : -1;
+              h[j].push(Math.max(1, Math.min(s + 3, lvl)));
+            }
+          }
+          return h;
+        }
+
+        /* ----- canvas ----- */
+        var canvas = document.getElementById("board");
+        var ctx = canvas.getContext("2d");
+        var W = 960, H = 720;
+        var drawList = [];
+
+        function buildDrawList() {
+          drawList = [];
+          var n = state.size;
+          var lo = state.wrapper ? -1 : 0;
+          var hi = state.wrapper ? n : n - 1;
+          for (var j = lo; j <= hi; j++) {
+            for (var i = lo; i <= hi; i++) {
+              var isWrap = i < 0 || j < 0 || i >= n || j >= n;
+              drawList.push({ i: i, j: j, h: isWrap ? 1 : state.heights[j][i], wrap: isWrap });
+            }
+          }
+          drawList.sort(function (a, b) {
+            var d = (a.i + a.j) - (b.i + b.j);
+            return d !== 0 ? d : a.i - b.i;
+          });
+        }
+
+        // Board tilt: state.tilt is degrees, 0 = the normal isometric view.
+        // Positive tilts toward top-down (the ground plane opens up, side
+        // faces shrink); negative tilts toward the front (the ground plane
+        // closes up, side faces grow and the peak drops on screen).
+        // squash is the ground plane's vertical scale: a top face is
+        // tw wide and tw * squash tall.
+        function tiltSquash() {
+          return Math.max(0.16, Math.min(0.95, 0.5 + state.tilt * 0.0115));
+        }
+        function tiltBhFactor(squash) {
+          return Math.max(0.3, 0.58 - (squash - 0.5) * 0.55);
+        }
+
+        function metrics() {
+          var n = state.size + (state.wrapper ? 2 : 0);
+          var maxH = state.steps + 3;
+          var squash = tiltSquash();
+          var bhF = tiltBhFactor(squash);
+          var tw = Math.min((W * 0.94) / n, (H * 0.86) / (n * squash + maxH * bhF));
+          var th = tw * squash, bh = tw * bhF;
+          var fieldH = (n - 1) * th + (state.steps + 1) * bh;
+          return {
+            tw: tw, th: th, bh: bh, squash: squash,
+            ox: W / 2 + (state.wrapper ? 0 : 0),
+            oy: (H - fieldH) / 2 + (state.steps + 1) * bh
+          };
+        }
+
+        function drawColumn(cx, groundCy, hgt, m, top, left, right) {
+          var tw = m.tw, th = m.th, bh = m.bh;
+          var topCy = groundCy - hgt * bh;
+          var x0 = cx - tw / 2, x1 = cx + tw / 2;
+          var drop = hgt * bh;
+          ctx.fillStyle = left;
+          ctx.beginPath();
+          ctx.moveTo(x0, topCy);
+          ctx.lineTo(cx, topCy + th / 2);
+          ctx.lineTo(cx, topCy + th / 2 + drop);
+          ctx.lineTo(x0, topCy + drop);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = right;
+          ctx.beginPath();
+          ctx.moveTo(x1, topCy);
+          ctx.lineTo(cx, topCy + th / 2);
+          ctx.lineTo(cx, topCy + th / 2 + drop);
+          ctx.lineTo(x1, topCy + drop);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = top;
+          ctx.beginPath();
+          ctx.moveTo(cx, topCy - th / 2);
+          ctx.lineTo(x1, topCy);
+          ctx.lineTo(cx, topCy + th / 2);
+          ctx.lineTo(x0, topCy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "rgba(15,15,20,0.25)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.strokeStyle = "rgba(15,15,20,0.16)";
+          ctx.beginPath();
+          ctx.moveTo(x0, topCy); ctx.lineTo(x0, topCy + drop);
+          ctx.moveTo(x1, topCy); ctx.lineTo(x1, topCy + drop);
+          ctx.moveTo(cx, topCy + th / 2); ctx.lineTo(cx, topCy + th / 2 + drop);
+          ctx.stroke();
+        }
+
+        /* ----- lights ----- */
+        var litI = null, litC = null, rays = [];
+        function resetLights() {
+          var n = state.size;
+          litI = new Float32Array(n * n);
+          litC = new Int16Array(n * n);
+          for (var k = 0; k < n * n; k++) litC[k] = -1;
+          rays = [];
+        }
+        function cellIdx(i, j) { return j * state.size + i; }
+
+        function spawnTwinkles(dt) {
+          var n = state.size;
+          var tries = Math.round(n * n * 0.004 * state.speed * (dt * 60));
+          for (var k = 0; k < tries; k++) {
+            var i = Math.floor(Math.random() * n);
+            var j = Math.floor(Math.random() * n);
+            var id = cellIdx(i, j);
+            if (litI[id] < 0.25) {
+              litI[id] = 0.7 + Math.random() * 0.3;
+              litC[id] = Math.floor(Math.random() * PALETTE.length);
+            }
+          }
+        }
+
+        function spawnRay() {
+          var c = (state.size - 1) / 2;
+          rays.push({
+            i: c, j: c,
+            ang: Math.random() * Math.PI * 2,
+            color: Math.floor(Math.random() * PALETTE.length),
+            acc: 0
+          });
+        }
+        function stepRays(dt) {
+          var n = state.size, c = (n - 1) / 2;
+          var interval = 0.085 / state.speed;
+          for (var r = rays.length - 1; r >= 0; r--) {
+            var ray = rays[r];
+            litI[cellIdx(ray.i, ray.j)] = 1;
+            litC[cellIdx(ray.i, ray.j)] = ray.color;
+            ray.acc += dt;
+            var alive = true;
+            while (ray.acc >= interval) {
+              ray.acc -= interval;
+              var curD = Math.hypot(ray.i - c, ray.j - c);
+              var best = null, bestScore = -Infinity;
+              for (var dj = -1; dj <= 1; dj++) {
+                for (var di = -1; di <= 1; di++) {
+                  if (di === 0 && dj === 0) continue;
+                  var ni = ray.i + di, nj = ray.j + dj;
+                  if (ni < 0 || nj < 0 || ni >= n || nj >= n) continue;
+                  if (Math.hypot(ni - c, nj - c) < curD - 0.01) continue;
+                  var align = di * Math.cos(ray.ang) + dj * Math.sin(ray.ang);
+                  var score = align + Math.random() * 1.15;
+                  if (score > bestScore) { bestScore = score; best = { i: ni, j: nj }; }
+                }
+              }
+              if (!best) { alive = false; break; }
+              ray.i = best.i; ray.j = best.j;
+              litI[cellIdx(ray.i, ray.j)] = 1;
+              litC[cellIdx(ray.i, ray.j)] = ray.color;
+              if (ray.i === 0 || ray.j === 0 || ray.i === n - 1 || ray.j === n - 1) { alive = false; break; }
+            }
+            if (!alive) rays.splice(r, 1);
+          }
+          if (rays.length < 4 && Math.random() < dt * 6 * state.speed) spawnRay();
+        }
+
+        /* ----- render ----- */
+        var paletteFaces = PALETTE.map(facesFor);
+        var lastT = performance.now();
+
+        function render(now) {
+          var dt = Math.min(0.05, (now - lastT) / 1000);
+          lastT = now;
+
+          var mode = state.lightMode;
+          if (mode === "random" || mode === "both") spawnTwinkles(dt);
+          if (mode === "center" || mode === "both") stepRays(dt);
+          if (litI) {
+            var keep = Math.pow(0.12, dt / state.speed);
+            for (var k = 0; k < litI.length; k++) {
+              if (litI[k] > 0.003) litI[k] *= keep;
+              else if (litI[k] !== 0) { litI[k] = 0; litC[k] = -1; }
+            }
+          }
+
+          ctx.fillStyle = state.bg;
+          ctx.fillRect(0, 0, W, H);
+
+          var m = metrics();
+          var off = state.wrapper ? 1 : 0;
+          var baseFaces = state.base === "solid" ? facesFor(state.fill) : null;
+          var wrapFaces = facesFor(state.wrapColor);
+
+          for (var d = 0; d < drawList.length; d++) {
+            var cell = drawList[d];
+            var gi = cell.i + off, gj = cell.j + off;
+            var cx = m.ox + (gi - gj) * m.tw / 2;
+            var cy = m.oy + (gi + gj) * m.th / 2;
+
+            var top, left, right;
+            if (cell.wrap) {
+              top = wrapFaces.top; left = wrapFaces.left; right = wrapFaces.right;
+            } else if (state.base === "solid") {
+              top = baseFaces.top; left = baseFaces.left; right = baseFaces.right;
+            } else {
+              top = GREY.top; left = GREY.left; right = GREY.right;
+            }
+
+            if (!cell.wrap && litI) {
+              var id = cellIdx(cell.i, cell.j);
+              var inten = litI[id];
+              if (inten > 0.01 && litC[id] >= 0) {
+                var pf = paletteFaces[litC[id]];
+                var bc = state.base === "solid"
+                  ? { top: baseFaces.topC, left: baseFaces.leftC, right: baseFaces.rightC }
+                  : GREY_RGB;
+                var t = Math.min(1, inten);
+                top = mixRgb(bc.top, pf.topC, t);
+                left = mixRgb(bc.left, pf.leftC, t);
+                right = mixRgb(bc.right, pf.rightC, t);
+              }
+            }
+            drawColumn(cx, cy, cell.h, m, top, left, right);
+          }
+
+          if (state.overlayImg) {
+            var img = state.overlayImg;
+            var dw = W * state.overlayScale;
+            var dh = dw * (img.naturalHeight / img.naturalWidth);
+            var cx2 = state.overlayX * W, cy2 = state.overlayY * H;
+            ctx.save();
+            ctx.globalAlpha = state.overlayOpacity;
+            if (state.overlayOrient === "board") {
+              // Lying flat on the board: the lettering's vertical axis is
+              // the ground's depth axis, so it is foreshortened by exactly
+              // the board's squash. Tilting the board toward top-down
+              // (squash -> 1) brings it back to full, readable height.
+              ctx.translate(cx2, cy2);
+              ctx.scale(1, m.squash);
+              ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+            } else {
+              ctx.drawImage(img, cx2 - dw / 2, cy2 - dh / 2, dw, dh);
+            }
+            ctx.restore();
+          }
+          requestAnimationFrame(render);
+        }
+
+        function rebuild(shuffled) {
+          state.heights = shuffled ? shuffledHeights() : cleanHeights();
+          buildDrawList();
+          resetLights();
+        }
+
+        /* ----- controls ----- */
+        function $(id) { return document.getElementById(id); }
+
+        function syncSeg(segEl, attr, value) {
+          var btns = segEl.querySelectorAll("button");
+          for (var b = 0; b < btns.length; b++) {
+            btns[b].setAttribute("aria-pressed", btns[b].getAttribute(attr) === value ? "true" : "false");
+          }
+        }
+
+        $("size-minus").addEventListener("click", function () {
+          if (state.size > 9) { state.size -= 2; $("size-val").textContent = state.size; rebuild(false); }
+        });
+        $("size-plus").addEventListener("click", function () {
+          if (state.size < 31) { state.size += 2; $("size-val").textContent = state.size; rebuild(false); }
+        });
+        $("steps-minus").addEventListener("click", function () {
+          if (state.steps > 2) { state.steps -= 1; $("steps-val").textContent = state.steps; rebuild(false); }
+        });
+        $("steps-plus").addEventListener("click", function () {
+          if (state.steps < 8) { state.steps += 1; $("steps-val").textContent = state.steps; rebuild(false); }
+        });
+
+        $("btn-shuffle").addEventListener("click", function () { rebuild(true); });
+        $("btn-reset").addEventListener("click", function () { rebuild(false); });
+
+        /* ----- board tilt ----- */
+        function syncTiltUI() {
+          $("tilt").value = state.tilt;
+          var label = state.tilt === 0 ? "normal" : state.tilt > 0 ? "top-down" : "front";
+          $("tilt-out").textContent = (state.tilt > 0 ? "+" : "") + state.tilt + "° — " + label;
+        }
+        function setTilt(v) {
+          state.tilt = Math.max(-32, Math.min(38, Math.round(v)));
+          syncTiltUI();
+        }
+        $("tilt").addEventListener("input", function () { setTilt(parseInt(this.value, 10) || 0); });
+        $("tilt-front").addEventListener("click", function () { setTilt(-24); });
+        $("tilt-normal").addEventListener("click", function () { setTilt(0); });
+        $("tilt-top").addEventListener("click", function () { setTilt(32); });
+        syncTiltUI();
+
+        /* ----- lettering overlay: upload, size, position ----- */
+        var fileInput = $("file-lettering");
+        var stageEl = $("stage");
+        var overlayControls = $("overlay-controls");
+        var overlayNameEl = $("overlay-name");
+
+        function syncOverlayOutputs() {
+          $("overlay-size-out").textContent = Math.round(state.overlayScale * 100) + "%";
+          $("overlay-size").value = Math.round(state.overlayScale * 100);
+          $("overlay-opacity-out").textContent = Math.round(state.overlayOpacity * 100) + "%";
+          $("overlay-opacity").value = Math.round(state.overlayOpacity * 100);
+          $("overlay-x-out").textContent = Math.round(state.overlayX * 100) + "%";
+          $("overlay-x").value = Math.round(state.overlayX * 100);
+          $("overlay-y-out").textContent = Math.round(state.overlayY * 100) + "%";
+          $("overlay-y").value = Math.round(state.overlayY * 100);
+        }
+        function showOverlayUI(has) {
+          overlayControls.hidden = !has;
+          overlayControls.style.display = has ? "flex" : "none";
+          overlayNameEl.hidden = !has;
+          $("btn-remove-overlay").hidden = !has;
+          stageEl.classList.toggle("has-overlay", has);
+          if (has) {
+            overlayNameEl.textContent = state.overlayName;
+            syncOverlayOutputs();
+          }
+        }
+        function openFilePicker() { fileInput.click(); }
+        $("btn-upload-top").addEventListener("click", openFilePicker);
+        $("btn-upload-panel").addEventListener("click", openFilePicker);
+
+        fileInput.addEventListener("change", function () {
+          var file = fileInput.files && fileInput.files[0];
+          if (!file) return;
+          if (state.overlayUrl) URL.revokeObjectURL(state.overlayUrl);
+          var url = URL.createObjectURL(file);
+          var img = new Image();
+          img.onload = function () {
+            state.overlayImg = img;
+            state.overlayUrl = url;
+            state.overlayName = file.name;
+            // Fit very wide or very tall art sensibly on first load, keep centered.
+            var aspect = img.naturalHeight / img.naturalWidth;
+            var wFrac = 0.68;
+            if (wFrac * aspect * (W / H) > 0.82) wFrac = 0.82 / (aspect * (W / H));
+            if (state.overlayScale === 0.68 || !state.overlayImg) state.overlayScale = wFrac;
+            else state.overlayScale = wFrac;
+            showOverlayUI(true);
+          };
+          img.onerror = function () {
+            URL.revokeObjectURL(url);
+            overlayNameEl.hidden = false;
+            overlayNameEl.textContent = "That file could not be read as an image — try a PNG or JPG.";
+          };
+          img.src = url;
+          fileInput.value = "";
+        });
+
+        $("btn-remove-overlay").addEventListener("click", function () {
+          state.overlayImg = null;
+          state.overlayName = "";
+          if (state.overlayUrl) { URL.revokeObjectURL(state.overlayUrl); state.overlayUrl = null; }
+          showOverlayUI(false);
+        });
+        $("btn-center-overlay").addEventListener("click", function () {
+          state.overlayX = 0.5; state.overlayY = 0.5; syncOverlayOutputs();
+        });
+
+        var orientSeg = $("overlay-orient-seg");
+        orientSeg.addEventListener("click", function (e) {
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          state.overlayOrient = btn.getAttribute("data-orient");
+          syncSeg(orientSeg, "data-orient", state.overlayOrient);
+        });
+
+        $("overlay-size").addEventListener("input", function () {
+          state.overlayScale = this.value / 100;
+          $("overlay-size-out").textContent = this.value + "%";
+        });
+        $("overlay-size-minus").addEventListener("click", function () {
+          state.overlayScale = Math.max(0.08, Math.round((state.overlayScale - 0.04) * 100) / 100);
+          syncOverlayOutputs();
+        });
+        $("overlay-size-plus").addEventListener("click", function () {
+          state.overlayScale = Math.min(1.15, Math.round((state.overlayScale + 0.04) * 100) / 100);
+          syncOverlayOutputs();
+        });
+        $("overlay-opacity").addEventListener("input", function () {
+          state.overlayOpacity = this.value / 100;
+          $("overlay-opacity-out").textContent = this.value + "%";
+        });
+        $("overlay-x").addEventListener("input", function () {
+          state.overlayX = this.value / 100;
+          $("overlay-x-out").textContent = this.value + "%";
+        });
+        $("overlay-y").addEventListener("input", function () {
+          state.overlayY = this.value / 100;
+          $("overlay-y-out").textContent = this.value + "%";
+        });
+
+        // Drag the lettering directly on the stage to move it; drag
+        // anywhere else on the board up or down to tilt the board.
+        var drag = null, tiltDrag = null;
+        function canvasPoint(e) {
+          var r = canvas.getBoundingClientRect();
+          return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+        }
+        canvas.addEventListener("pointerdown", function (e) {
+          var p = canvasPoint(e);
+          if (state.overlayImg) {
+            var dw = state.overlayScale;
+            var dh = dw * (state.overlayImg.naturalHeight / state.overlayImg.naturalWidth) * (W / H);
+            if (state.overlayOrient === "board") dh *= tiltSquash();
+            var inside = Math.abs(p.x - state.overlayX) <= dw / 2 + 0.04 && Math.abs(p.y - state.overlayY) <= dh / 2 + 0.04;
+            if (inside) {
+              drag = { dx: p.x - state.overlayX, dy: p.y - state.overlayY };
+              canvas.setPointerCapture(e.pointerId);
+              e.preventDefault();
+              return;
+            }
+          }
+          tiltDrag = { startY: p.y, startTilt: state.tilt };
+          canvas.setPointerCapture(e.pointerId);
+          e.preventDefault();
+        });
+        canvas.addEventListener("pointermove", function (e) {
+          var p = canvasPoint(e);
+          if (drag) {
+            state.overlayX = Math.max(0, Math.min(1, p.x - drag.dx));
+            state.overlayY = Math.max(0, Math.min(1, p.y - drag.dy));
+            syncOverlayOutputs();
+          } else if (tiltDrag) {
+            // Dragging up tilts toward top-down, down toward the front.
+            setTilt(tiltDrag.startTilt + (tiltDrag.startY - p.y) * 90);
+          }
+        });
+        function endDrag() { drag = null; tiltDrag = null; }
+        canvas.addEventListener("pointerup", endDrag);
+        canvas.addEventListener("pointercancel", endDrag);
+
+        var lightSeg = $("light-seg");
+        lightSeg.addEventListener("click", function (e) {
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          state.lightMode = btn.getAttribute("data-mode");
+          syncSeg(lightSeg, "data-mode", state.lightMode);
+          if (state.lightMode === "off") resetLights();
+        });
+        syncSeg(lightSeg, "data-mode", state.lightMode);
+
+        var baseSeg = $("base-seg");
+        baseSeg.addEventListener("click", function (e) {
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          state.base = btn.getAttribute("data-base");
+          syncSeg(baseSeg, "data-base", state.base);
+        });
+
+        $("speed").addEventListener("input", function () {
+          state.speed = this.value / 100;
+          $("speed-out").textContent = state.speed.toFixed(state.speed < 1 ? 2 : 1).replace(/0$/, "") + "×";
+        });
+
+        function bindColor(pickerId, hexId, apply) {
+          var picker = $(pickerId), hex = $(hexId);
+          picker.addEventListener("input", function () { hex.value = picker.value; apply(picker.value); });
+          hex.addEventListener("change", function () {
+            var c = hexToRgb(hex.value);
+            if (c) {
+              var norm = "#" + ((1 << 24) + (c.r << 16) + (c.g << 8) + c.b).toString(16).slice(1);
+              hex.value = norm; picker.value = norm; apply(norm);
+            } else {
+              hex.value = picker.value;
+            }
+          });
+        }
+        bindColor("fill-picker", "fill-hex", function (v) {
+          state.fill = v;
+          if (state.base !== "solid") { state.base = "solid"; syncSeg(baseSeg, "data-base", "solid"); }
+        });
+        bindColor("wrap-picker", "wrap-hex", function (v) { state.wrapColor = v; });
+
+        $("wrap-toggle").addEventListener("click", function () {
+          state.wrapper = !state.wrapper;
+          this.setAttribute("aria-pressed", state.wrapper ? "true" : "false");
+          buildDrawList();
+        });
+
+        var bgSwatches = $("bg-swatches");
+        function setBg(v) {
+          state.bg = v;
+          $("bg-picker").value = v;
+          $("bg-hex").value = v;
+          var btns = bgSwatches.querySelectorAll("button");
+          for (var b = 0; b < btns.length; b++) {
+            btns[b].setAttribute("aria-pressed", btns[b].getAttribute("data-bg") === v ? "true" : "false");
+          }
+        }
+        bgSwatches.addEventListener("click", function (e) {
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          setBg(btn.getAttribute("data-bg"));
+        });
+        bindColor("bg-picker", "bg-hex", function (v) { setBg(v); });
+
+        rebuild(false);
+        requestAnimationFrame(render);
+      })();
+    </script>
+  </body>
+</html>
