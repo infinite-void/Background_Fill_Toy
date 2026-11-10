@@ -247,12 +247,12 @@
     <main class="wrap">
       <section class="stage-card" aria-label="Steps stage">
         <div class="stage" id="stage">
-          <canvas id="board" width="960" height="720" aria-label="Tiltable isometric stepped block structure with animated lights and optional uploaded lettering overlay. Drag up or down on the board to tilt it."></canvas>
+          <canvas id="board" width="960" height="720" aria-label="Tiltable isometric stepped block structure with animated lights and optional uploaded image overlay. Drag up or down on the board to tilt it."></canvas>
         </div>
         <div class="stage-actions">
           <button type="button" id="btn-shuffle" class="primary">Shuffle pattern</button>
           <button type="button" id="btn-reset">Reset shape</button>
-          <button type="button" id="btn-upload-top">Upload lettering</button>
+          <button type="button" id="btn-upload-top">Upload image</button>
         </div>
         <input type="file" id="file-lettering" accept="image/*" hidden />
       </section>
@@ -285,7 +285,7 @@
             <button type="button" id="tilt-normal">Normal</button>
             <button type="button" id="tilt-top">Top-down</button>
           </div>
-          <p class="hint">Front tips the board toward you — you see the sides and the peak drops. Top-down tips it the other way — the board flattens out, so lettering lying flat on it reads straight. You can also drag up or down on the board itself to tilt it.</p>
+          <p class="hint">Front tips the board toward you — you see the sides and the peak drops. Top-down tips it the other way — the board flattens out, so an image lying flat on it reads straight. You can also drag up or down on the board itself to tilt it.</p>
           <div>
             <div class="slider-label"><span>Rotation</span></div>
             <div class="seg" role="group" aria-label="Board rotation" id="rotate-seg" style="margin-top:6px;">
@@ -353,44 +353,44 @@
         </div>
 
         <div class="group">
-          <h2>Lettering overlay</h2>
-          <p class="hint">Upload your Koishii lettering — a transparent PNG works best. It draws right on top of the blocks so your screen capture records the lettering and the lights together.</p>
+          <h2>Image overlay</h2>
+          <p class="hint">Upload any image — a transparent PNG works best. It draws right on top of the blocks so your screen capture records the image and the lights together.</p>
           <div class="overlay-actions">
-            <button type="button" id="btn-upload-panel" class="primary">Upload lettering</button>
+            <button type="button" id="btn-upload-panel" class="primary">Upload image</button>
             <button type="button" id="btn-remove-overlay" hidden>Remove</button>
           </div>
           <p class="file-name" id="overlay-name" hidden></p>
           <div id="overlay-controls" hidden style="display:none; flex-direction:column; gap:10px;">
             <div>
-              <div class="slider-label"><span>Lettering lies</span></div>
-              <div class="seg" role="group" aria-label="Lettering orientation" id="overlay-orient-seg">
+              <div class="slider-label"><span>Image lies</span></div>
+              <div class="seg" role="group" aria-label="Image orientation" id="overlay-orient-seg">
                 <button type="button" data-orient="board" aria-pressed="true">Flat on board</button>
                 <button type="button" data-orient="screen" aria-pressed="false">Facing you</button>
               </div>
-              <p class="hint" style="margin-top:6px;">Flat on board: the lettering tilts with the board — tilt the board Top-down to read it straight. Facing you: it stays upright on screen whatever the board does.</p>
+              <p class="hint" style="margin-top:6px;">Flat on board: the image tilts with the board — tilt the board Top-down to read it straight. Facing you: it stays upright on screen whatever the board does.</p>
             </div>
             <div>
               <div class="slider-label"><span>Size</span><output id="overlay-size-out">68%</output></div>
               <div class="range-row">
-                <button type="button" id="overlay-size-minus" aria-label="Make lettering smaller" style="flex:0 0 38px; min-height:32px; padding:2px 0;">&minus;</button>
-                <input type="range" id="overlay-size" min="8" max="115" value="68" aria-label="Lettering size" />
-                <button type="button" id="overlay-size-plus" aria-label="Make lettering larger" style="flex:0 0 38px; min-height:32px; padding:2px 0;">+</button>
+                <button type="button" id="overlay-size-minus" aria-label="Make image smaller" style="flex:0 0 38px; min-height:32px; padding:2px 0;">&minus;</button>
+                <input type="range" id="overlay-size" min="8" max="115" value="68" aria-label="Image size" />
+                <button type="button" id="overlay-size-plus" aria-label="Make image larger" style="flex:0 0 38px; min-height:32px; padding:2px 0;">+</button>
               </div>
             </div>
             <div>
               <div class="slider-label"><span>Opacity</span><output id="overlay-opacity-out">100%</output></div>
-              <input type="range" id="overlay-opacity" min="10" max="100" value="100" aria-label="Lettering opacity" />
+              <input type="range" id="overlay-opacity" min="10" max="100" value="100" aria-label="Image opacity" />
             </div>
             <div>
               <div class="slider-label"><span>Left – right</span><output id="overlay-x-out">50%</output></div>
-              <input type="range" id="overlay-x" min="0" max="100" value="50" aria-label="Lettering horizontal position" />
+              <input type="range" id="overlay-x" min="0" max="100" value="50" aria-label="Image horizontal position" />
             </div>
             <div>
               <div class="slider-label"><span>Up – down</span><output id="overlay-y-out">50%</output></div>
-              <input type="range" id="overlay-y" min="0" max="100" value="50" aria-label="Lettering vertical position" />
+              <input type="range" id="overlay-y" min="0" max="100" value="50" aria-label="Image vertical position" />
             </div>
-            <button type="button" id="btn-center-overlay">Center lettering</button>
-            <p class="hint">Tip: you can also drag the lettering directly on the stage to place it.</p>
+            <button type="button" id="btn-center-overlay">Center image</button>
+            <p class="hint">Tip: you can also drag the image directly on the stage to place it.</p>
           </div>
         </div>
       </aside>
