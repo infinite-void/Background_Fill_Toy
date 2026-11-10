@@ -220,6 +220,24 @@
       .stage canvas:active { cursor: grabbing; }
       .preset-row { display: flex; gap: 8px; }
       .preset-row button { flex: 1; }
+      .hide-controls-btn { align-self: stretch; }
+      body.ui-hidden .panel { display: none; }
+      body.ui-hidden .wrap { grid-template-columns: minmax(0, 1fr); }
+      .show-pill {
+        position: fixed;
+        right: calc(14px + env(safe-area-inset-right, 0px));
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        z-index: 50;
+        background: var(--seg-on);
+        color: var(--seg-on-ink);
+        border: 1px solid var(--seg-on);
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-weight: 600;
+        min-height: 44px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+      }
+      .show-pill:hover { border-color: var(--seg-on); opacity: 0.92; }
       @media (max-width: 860px) {
         .wrap { grid-template-columns: minmax(0, 1fr); padding: 12px 10px 32px; }
       }
@@ -240,6 +258,7 @@
       </section>
 
       <aside class="panel" aria-label="Builder controls">
+        <button type="button" id="btn-hide-controls" class="hide-controls-btn" aria-expanded="true">Hide controls</button>
         <div class="group">
           <h2>Blocks</h2>
           <div class="stepper">
@@ -267,6 +286,14 @@
             <button type="button" id="tilt-top">Top-down</button>
           </div>
           <p class="hint">Front tips the board toward you — you see the sides and the peak drops. Top-down tips it the other way — the board flattens out, so lettering lying flat on it reads straight. You can also drag up or down on the board itself to tilt it.</p>
+          <div>
+            <div class="slider-label"><span>Rotation</span></div>
+            <div class="seg" role="group" aria-label="Board rotation" id="rotate-seg" style="margin-top:6px;">
+              <button type="button" data-rot="diamond" aria-pressed="true">Diamond</button>
+              <button type="button" data-rot="square" aria-pressed="false">Square — turned 45&deg;</button>
+            </div>
+            <p class="hint" style="margin-top:6px;">Diamond is the usual view: the board's points aim north and south. Square turns the board 45&deg; so its sides sit flat and its corners point to the corners of the frame — zoom in on the board and it can fill a whole square frame, with no empty corners.</p>
+          </div>
         </div>
 
         <div class="group">
@@ -369,6 +396,8 @@
       </aside>
     </main>
 
+    <button type="button" id="btn-show-controls" class="show-pill" aria-expanded="false" hidden>Show controls</button>
+
     <script>
       (function () {
         "use strict";
@@ -383,6 +412,7 @@
           size: 21,
           steps: 5,
           tilt: 0,
+          rotated: false,
           heights: null,
           lightMode: "both",
           speed: 1,
@@ -504,10 +534,19 @@
               drawList.push({ i: i, j: j, h: isWrap ? 1 : state.heights[j][i], wrap: isWrap });
             }
           }
-          drawList.sort(function (a, b) {
-            var d = (a.i + a.j) - (b.i + b.j);
-            return d !== 0 ? d : a.i - b.i;
-          });
+          if (state.rotated) {
+            // Turned 45°: back rows (small j) draw first, front rows last,
+            // so front columns overlap the ones behind them.
+            drawList.sort(function (a, b) {
+              var d = a.j - b.j;
+              return d !== 0 ? d : a.i - b.i;
+            });
+          } else {
+            drawList.sort(function (a, b) {
+              var d = (a.i + a.j) - (b.i + b.j);
+              return d !== 0 ? d : a.i - b.i;
+            });
+          }
         }
 
         // Board tilt: state.tilt is degrees, 0 = the normal isometric view.
@@ -528,6 +567,61 @@
           var maxH = state.steps + 3;
           var squash = tiltSquash();
           var bhF = tiltBhFactor(squash);
+          if (state.rotated) {
+            // Turned 45°: the grid axes line up with the screen — i runs
+            // straight across, j runs straight down — so the field's
+            // sides sit flat and its corners point at the frame corners.
+            // Tilt applies to this view exactly as it does to Diamond:
+            // the depth axis (j, running down the screen) is
+            // foreshortened by the tilt squash, so a block's top is a
+            // rectangle s wide and s * squash tall and the whole field
+            // tips as one body — nearly square at Top-down, a wide flat
+            // band at Front. The earlier version kept the depth axis at
+            // full length at every tilt and let tilt move only the
+            // column heights, so Front and Normal drew almost the same
+            // picture (the board never visibly tilted), and because the
+            // ground plane stayed a full square while each column's top
+            // was still shoved up by its height, the tall X tips at the
+            // back corners were pushed up outside the board's flat top
+            // edge instead of the board tipping under them.
+            var s = Math.min((W * 0.94) / n, (H * 0.86) / (n * squash + maxH * bhF));
+            var bhR = s * bhF;
+            var rowH = s * squash;
+            // Center on the board that is actually drawn, not on the
+            // worst-case box the cell size was reserved for. A column's
+            // drawn top is its ground line minus h * bhR minus half its
+            // (squashed) top face; its front face always ends at its
+            // ground line plus that same half, so the drawn bottom is
+            // the front row's ground line plus rowH / 2. Find the
+            // highest drawn top across the actual heights and center
+            // between it and that bottom, so every tilt preset lands
+            // the board dead center.
+            var midSq = (n - 1) / 2;
+            var minTop = Infinity;
+            if (state.heights) {
+              var offSq = state.wrapper ? 1 : 0;
+              var loSq = state.wrapper ? -1 : 0;
+              var hiSq = state.wrapper ? state.size : state.size - 1;
+              for (var cj = loSq; cj <= hiSq; cj++) {
+                for (var ci = loSq; ci <= hiSq; ci++) {
+                  var isWSq = ci < 0 || cj < 0 || ci >= state.size || cj >= state.size;
+                  var chSq = isWSq ? 1 : state.heights[cj][ci];
+                  var relSq = (cj + offSq - midSq) * rowH - chSq * bhR - rowH / 2;
+                  if (relSq < minTop) minTop = relSq;
+                }
+              }
+            }
+            if (!isFinite(minTop)) {
+              var backSq = state.wrapper ? 1 : 0;
+              minTop = (backSq - midSq) * rowH - (state.steps + 1) * bhR - rowH / 2;
+            }
+            var maxBottomSq = n * rowH / 2;
+            return {
+              tw: s, th: rowH, bh: bhR, squash: squash, s: s, n: n,
+              ox: W / 2,
+              oy: H / 2 - (minTop + maxBottomSq) / 2
+            };
+          }
           var tw = Math.min((W * 0.94) / n, (H * 0.86) / (n * squash + maxH * bhF));
           var th = tw * squash, bh = tw * bhF;
           var fieldH = (n - 1) * th + (state.steps + 1) * bh;
@@ -576,6 +670,37 @@
           ctx.moveTo(x1, topCy); ctx.lineTo(x1, topCy + drop);
           ctx.moveTo(cx, topCy + th / 2); ctx.lineTo(cx, topCy + th / 2 + drop);
           ctx.stroke();
+        }
+
+        // Turned 45°: a column is a top face with one flat front face
+        // below it — the two diamond side faces fold into this one
+        // face, which takes the darker right-face shade so the height
+        // still reads against the bright top. The top face is s wide
+        // and s * squash tall (m.th): tilt foreshortens it along with
+        // the ground plane, so at Front the tops flatten to thin bands
+        // and the front faces carry the view, while at Top-down the
+        // tops open up to nearly full squares.
+        function drawColumnSquare(cx, groundCy, hgt, m, top, front) {
+          var s = m.s, th = m.th, bh = m.bh;
+          var topCy = groundCy - hgt * bh;
+          var x0 = cx - s / 2, x1 = cx + s / 2;
+          var y0 = topCy - th / 2, y1 = topCy + th / 2;
+          var drop = hgt * bh;
+          ctx.fillStyle = front;
+          ctx.fillRect(x0, y1, s, drop);
+          ctx.fillStyle = top;
+          ctx.fillRect(x0, y0, s, th);
+          ctx.strokeStyle = "rgba(15,15,20,0.25)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x0, y0, s, th);
+          if (drop > 0) {
+            ctx.strokeStyle = "rgba(15,15,20,0.16)";
+            ctx.beginPath();
+            ctx.moveTo(x0, y1); ctx.lineTo(x0, y1 + drop);
+            ctx.moveTo(x1, y1); ctx.lineTo(x1, y1 + drop);
+            ctx.moveTo(x0, y1 + drop); ctx.lineTo(x1, y1 + drop);
+            ctx.stroke();
+          }
         }
 
         /* ----- lights ----- */
@@ -677,8 +802,15 @@
           for (var d = 0; d < drawList.length; d++) {
             var cell = drawList[d];
             var gi = cell.i + off, gj = cell.j + off;
-            var cx = m.ox + (gi - gj) * m.tw / 2;
-            var cy = m.oy + (gi + gj) * m.th / 2;
+            var cx, cy;
+            if (state.rotated) {
+              var mid = (m.n - 1) / 2;
+              cx = m.ox + (gi - mid) * m.s;
+              cy = m.oy + (gj - mid) * m.th;
+            } else {
+              cx = m.ox + (gi - gj) * m.tw / 2;
+              cy = m.oy + (gi + gj) * m.th / 2;
+            }
 
             var top, left, right;
             if (cell.wrap) {
@@ -703,7 +835,8 @@
                 right = mixRgb(bc.right, pf.rightC, t);
               }
             }
-            drawColumn(cx, cy, cell.h, m, top, left, right);
+            if (state.rotated) drawColumnSquare(cx, cy, cell.h, m, top, right);
+            else drawColumn(cx, cy, cell.h, m, top, left, right);
           }
 
           if (state.overlayImg) {
@@ -718,6 +851,9 @@
               // the ground's depth axis, so it is foreshortened by exactly
               // the board's squash. Tilting the board toward top-down
               // (squash -> 1) brings it back to full, readable height.
+              // Turned 45° the depth axis still runs straight down the
+              // screen, just foreshortened by the same squash, so the
+              // same scale applies in both rotations.
               ctx.translate(cx2, cy2);
               ctx.scale(1, m.squash);
               ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
@@ -737,6 +873,20 @@
 
         /* ----- controls ----- */
         function $(id) { return document.getElementById(id); }
+
+        /* ----- hide / show the whole control panel ----- */
+        var hideControlsBtn = $("btn-hide-controls");
+        var showControlsPill = $("btn-show-controls");
+        function setControlsHidden(hidden) {
+          document.body.classList.toggle("ui-hidden", hidden);
+          showControlsPill.hidden = !hidden;
+          hideControlsBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
+          showControlsPill.setAttribute("aria-expanded", hidden ? "false" : "true");
+          if (hidden) showControlsPill.focus();
+          else hideControlsBtn.focus();
+        }
+        hideControlsBtn.addEventListener("click", function () { setControlsHidden(true); });
+        showControlsPill.addEventListener("click", function () { setControlsHidden(false); });
 
         function syncSeg(segEl, attr, value) {
           var btns = segEl.querySelectorAll("button");
@@ -776,6 +926,18 @@
         $("tilt-normal").addEventListener("click", function () { setTilt(0); });
         $("tilt-top").addEventListener("click", function () { setTilt(32); });
         syncTiltUI();
+
+        /* ----- board rotation: diamond or turned 45° to a square ----- */
+        var rotateSeg = $("rotate-seg");
+        rotateSeg.addEventListener("click", function (e) {
+          var btn = e.target.closest("button");
+          if (!btn) return;
+          var turned = btn.getAttribute("data-rot") === "square";
+          if (turned === state.rotated) return;
+          state.rotated = turned;
+          syncSeg(rotateSeg, "data-rot", turned ? "square" : "diamond");
+          buildDrawList();
+        });
 
         /* ----- lettering overlay: upload, size, position ----- */
         var fileInput = $("file-lettering");
