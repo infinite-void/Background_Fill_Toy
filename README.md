@@ -1,7 +1,5 @@
 # Background Fill Toy
 
-<img src="readme-board-controls.png" width="190">
-
 ## What it is
 
 A toy that fills empty backgrounds with animated 3D steps. A board of blocks in an X ridge — two diagonal rows crossing at a center peak, stepping down on each side — that you can recolor, relight, tilt, and put your own image on. I needed a fresh background for an animated ANSI/ASCII art project. This was the outcome. 
